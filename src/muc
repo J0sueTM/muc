@@ -1,0 +1,133 @@
+#! /bin/bash
+
+# file: src/muc
+# author: Josue Teodoro Moreira <teodoro.josue@protonmail.ch>
+# date: Jul 16, 2021
+
+usage()
+{
+    echo "muc [ -h || -v ]"
+    echo "muc [ -f && -d ]"
+    echo
+    echo "  -h shows this help and exit."
+    echo "  -v shows version and author."
+    echo
+    echo "  -f the file with music links."
+    echo "  -d the directory where music should be downloaded."
+
+    exit 0
+}
+
+version()
+{
+    echo "muc version 1.0"
+    echo
+    echo "Made with love by Josue Teodoro Moreira <teodoro.josue@protonmail.ch>"
+    echo
+    echo "Please, report bugs and send PRs to https://github.com/J0sueTM/muc"
+
+    exit 0
+}
+
+parse_file()
+{
+    echo "$(basename $0): Parsing file $1"
+    echo
+
+    while IFS= read -r line
+    do
+        echo "$(basename $0): Found $line"
+        
+        youtube-dl -o "$2/%(title)s.%(ext)s" -x $line --audio-format best
+        
+        echo "$(basename $0): Done"
+        echo
+    done < <(gawk "/.co/ {print}" $1)
+}
+
+# check if all necessary programs are installed
+if [[ -z $(command -v youtube-dl) ]]
+then
+    echo "$(basename $0): Youtube-dl couldn't be found."
+
+    exit 1
+elif [[ -z $(command -v gawk) ]]
+then
+    echo "$(basename $0): Gawk couldn't be found."
+
+    exit 1
+elif [[ -z $(command -v ffmpeg) ]]
+then
+    echo "$(basename $0): Ffmpeg couldn't be found."
+
+    exit 1
+fi
+
+if [[ $# -eq 0 ]]
+then
+    usage
+fi
+
+options=":hvf:d:"
+
+while getopts $options args
+do
+    case $args in
+        h)
+            usage
+
+            ;;
+        v)
+            version
+            
+            ;;
+        f)
+            m_file=$OPTARG
+            
+            ;;
+        d)
+            m_dir=$OPTARG
+
+            ;;
+        :)
+            echo "$(basename $0): Invalid argument: -$OPTARG"
+            echo
+            usage
+
+            exit 1
+            
+            ;;
+        ?)
+            echo "$(basename $0): Invalid option: $ARGS"
+            echo
+            usage
+
+            exit 1
+        
+            ;;
+    esac
+done
+
+if [[ -z $m_file ]]
+then
+    echo "$(basename $0): Could not parse file path: $m_file"
+    echo
+    usage
+
+    exit 1
+elif ! [[ -f $m_file ]]
+then
+     echo "$(basename $0): Given file: $m_file does not exist or $(basename $0) doesn't have access to it."
+fi
+
+if [[ -z $m_dir ]]
+then
+    echo "$(basename $0): WARNING: Could not parse directory: $m_dir. Using cwd instead."
+elif ! [[ -d $m_dir ]]
+then
+    echo "$(basename $0): WARNING: Given directory: $m_dir does not exist or $(basename $0) doesn't have access to it."
+fi
+
+parse_file $(realpath $m_file) $(realpath $m_dir)
+
+exit 0
